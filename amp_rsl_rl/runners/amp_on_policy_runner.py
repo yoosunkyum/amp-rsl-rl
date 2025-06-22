@@ -21,7 +21,8 @@ from rsl_rl.modules import ActorCritic, ActorCriticRecurrent, EmpiricalNormaliza
 from rsl_rl.utils import store_code_state
 
 from amp_rsl_rl.utils import Normalizer
-from amp_rsl_rl.utils import AMPLoader
+from amp_rsl_rl.utils import AMPLoader, MotionLoader
+
 from amp_rsl_rl.algorithms import AMP_PPO
 from amp_rsl_rl.networks import Discriminator
 from amp_rsl_rl.utils import export_policy_as_onnx
@@ -148,25 +149,39 @@ class AMPOnPolicyRunner:
         )
 
         actuated_joint_names = self.env.cfg.actions.joint_positions.joint_names
-
+        real_joint_names = self.env.unwrapped.scene["robot"].joint_names
         delta_t = self.env.cfg.sim.dt * self.env.cfg.decimation
 
         # Initilize all the ingredients required for AMP (discriminator, dataset loader)
         num_amp_obs = extras["observations"]["amp"].shape[1]
-        amp_data = AMPLoader(
+        # amp_data = AMPLoader(
+        #     self.device,
+        #     self.cfg["amp_data_path"],
+        #     self.cfg["dataset_names"],
+        #     self.cfg["dataset_weights"],
+        #     delta_t,
+        #     self.cfg["slow_down_factor"],
+        #     actuated_joint_names,
+        # )
+        print("-"*20)
+        print("actuated joint names : ", actuated_joint_names)
+        print("real joint names : ", real_joint_names)
+        print("-"*20)
+        amp_data = MotionLoader(
             self.device,
             self.cfg["amp_data_path"],
             self.cfg["dataset_names"],
             self.cfg["dataset_weights"],
             delta_t,
             self.cfg["slow_down_factor"],
-            actuated_joint_names,
+            real_joint_names,
         )
 
         # self.env.unwrapped.scene["robot"].joint_names)
 
         # amp_data = AMPLoader(num_amp_obs, self.device)
         self.amp_normalizer = Normalizer(num_amp_obs, device=self.device)
+        # self.amp_normalizer = None
         self.discriminator = Discriminator(
             num_amp_obs
             * 2,  # the discriminator takes in the concatenation of the current and next observation
@@ -339,7 +354,10 @@ class AMPOnPolicyRunner:
                     next_amp_obs = next_amp_obs.to(self.device)
 
                     # Process the AMP reward
-                    style_rewards = self.discriminator.predict_reward(
+                    # style_rewards = self.discriminator.predict_reward(
+                    #     amp_obs, next_amp_obs, normalizer=self.amp_normalizer
+                    # )
+                    style_rewards, _ = self.discriminator.predict_reward_old(
                         amp_obs, next_amp_obs, normalizer=self.amp_normalizer
                     )
 

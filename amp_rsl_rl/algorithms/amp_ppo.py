@@ -18,7 +18,7 @@ from rsl_rl.storage import RolloutStorage
 
 from amp_rsl_rl.storage import ReplayBuffer
 from amp_rsl_rl.networks import Discriminator
-from amp_rsl_rl.utils import AMPLoader
+from amp_rsl_rl.utils import AMPLoader, MotionLoader
 
 
 class AMP_PPO:
@@ -77,7 +77,8 @@ class AMP_PPO:
         self,
         actor_critic: ActorCritic,
         discriminator: Discriminator,
-        amp_data: AMPLoader,
+        # amp_data: AMPLoader,
+        amp_data: MotionLoader,
         amp_normalizer: Optional[Any],
         num_learning_epochs: int = 1,
         num_mini_batches: int = 1,
@@ -111,7 +112,8 @@ class AMP_PPO:
         self.amp_storage: ReplayBuffer = ReplayBuffer(
             obs_dim=obs_dim, buffer_size=amp_replay_buffer_size, device=device
         )
-        self.amp_data: AMPLoader = amp_data
+        # self.amp_data: AMPLoader = amp_data
+        self.amp_data: MotionLoader = amp_data
         self.amp_normalizer: Optional[Any] = amp_normalizer
 
         # Set up the actor-critic (policy) and move it to the device.
@@ -320,6 +322,9 @@ class AMP_PPO:
         """
         loss_fn = torch.nn.BCEWithLogitsLoss()
         expected = torch.zeros_like(discriminator_output).to(self.device)
+
+        # loss_fn = torch.nn.MSELoss()
+        # expected = - torch.ones_like(discriminator_output).to(self.device)
         return loss_fn(discriminator_output, expected)
 
     def discriminator_expert_loss(
@@ -341,6 +346,9 @@ class AMP_PPO:
         """
         loss_fn = torch.nn.BCEWithLogitsLoss()
         expected = torch.ones_like(discriminator_output).to(self.device)
+
+        # loss_fn = torch.nn.MSELoss()
+        # expected = torch.ones_like(discriminator_output).to(self.device)
         return loss_fn(discriminator_output, expected)
 
     def update(self) -> Tuple[float, float, float, float, float, float, float, float]:
@@ -526,7 +534,11 @@ class AMP_PPO:
             )
 
             # The final loss combines the PPO loss with AMP losses.
-            loss = ppo_loss + (amp_loss + grad_pen_loss)
+            amp_loss_scale = 1
+
+            amp_loss +=grad_pen_loss
+            amp_loss *=amp_loss_scale
+            loss = ppo_loss + amp_loss
 
             # Backpropagation and optimizer step.
             self.optimizer.zero_grad()
