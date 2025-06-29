@@ -354,12 +354,12 @@ class AMPOnPolicyRunner:
                     next_amp_obs = next_amp_obs.to(self.device)
 
                     # Process the AMP reward
-                    # style_rewards = self.discriminator.predict_reward(
-                    #     amp_obs, next_amp_obs, normalizer=self.amp_normalizer
-                    # )
-                    style_rewards, _ = self.discriminator.predict_reward_old(
+                    style_rewards = self.discriminator.predict_reward(
                         amp_obs, next_amp_obs, normalizer=self.amp_normalizer
                     )
+                    # style_rewards, _ = self.discriminator.predict_reward_old(
+                    #     amp_obs, next_amp_obs, normalizer=self.amp_normalizer
+                    # )
 
                     mean_task_reward_log += rewards.mean().item()
                     mean_style_reward_log += style_rewards.mean().item()
