@@ -12,7 +12,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
 from scipy.interpolate import interp1d
 
-from isaaclab.utils.math import quat_rotate_inverse
+from isaaclab.utils.math import quat_apply_inverse
 
 
 def rotation_to_local_angular_velocity(rot_seq: Rotation, dt: float) -> np.ndarray:
@@ -152,7 +152,7 @@ class MotionData:
         
         
         gravity = torch.tensor([0.0, 0.0, -1.0],device=self.device).expand(quat_wxyz.shape[:-1] + (3,))
-        self.projected_gravity = quat_rotate_inverse(self.base_quat, gravity)
+        self.projected_gravity = quat_apply_inverse(self.base_quat, gravity)
     def __len__(self) -> int:
         return self.joint_positions.shape[0]
 
@@ -465,7 +465,7 @@ class MotionLoader:
 
     def __init__(self, 
                  device: torch.device,
-                 dataset_path_root : Path,
+                 dataset_path_root: Path ,
                  dataset_names : List[str],
                  dataset_weights: List[float],
                  simulation_dt: float,
@@ -482,10 +482,11 @@ class MotionLoader:
         Raises:
             AssertionError: If the specified motion file doesn't exist.
         """
-        if isinstance(dataset_path_root, str):
-            dataset_path_root = Path(dataset_path_root)
+        # if isinstance(dataset_path_root, str):
+        #     dataset_path_root = Path(dataset_path_root)
         for name in dataset_names:
-            motion_file = dataset_path_root / f"{name}.npz"
+            # motion_file = dataset_path_root / f"{name}.npz"
+            motion_file = "C:/Research/isaaclab_amp_rsl_rl/motions/g1/g1_walk.npz"
             assert os.path.isfile(motion_file), f"Invalid file path: {motion_file}"
             data = np.load(motion_file)
 
@@ -719,7 +720,7 @@ class MotionLoader:
             base_pos_z = body_positions[:,0,2:3]
             
             gravity = torch.tensor([0.0, 0.0, -1.0],device=self.device).expand(body_rotations[:,0,:].shape[:-1] + (3,))
-            projected_gravity = quat_rotate_inverse(body_rotations[:,0,:], gravity)
+            projected_gravity = quat_apply_inverse(body_rotations[:,0,:], gravity)
             
             base_lin_velocities_local = body_linear_velocities[:,0,:]
             base_ang_velocities_local = body_angular_velocities[:,0,:]
@@ -773,7 +774,7 @@ class MotionLoader:
         base_pos_z = body_positions[:,0,2:3]
         
         gravity = torch.tensor([0.0, 0.0, -1.0],device=self.device).expand(body_rotations[:,0,:].shape[:-1] + (3,))
-        projected_gravity = quat_rotate_inverse(body_rotations[:,0,:], gravity)
+        projected_gravity = quat_apply_inverse(body_rotations[:,0,:], gravity)
         
         base_lin_velocities_local = body_linear_velocities[:,0,:]
         base_ang_velocities_local = body_angular_velocities[:,0,:]

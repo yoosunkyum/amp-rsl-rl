@@ -96,6 +96,38 @@ class Discriminator(nn.Module):
 
         grad_pen = lambda_ * (grad.norm(2, dim=1) - 0).pow(2).mean()
         return grad_pen
+    
+    def compute_grad_pen_add(
+        self,
+        policy_state: torch.Tensor,
+        lambda_: float = 10,
+    ) -> torch.Tensor:
+        """Computes the gradient penalty used to regularize the discriminator.
+
+        Args:
+            expert_state (Tensor): Batch of expert states.
+            expert_next_state (Tensor): Batch of expert next states.
+            lambda_ (float): Penalty coefficient.
+
+        Returns:
+            Tensor: Gradient penalty value.
+        """
+        policy_state.requires_grad = True
+
+        disc = self.forward(policy_state)
+        ones = torch.ones(disc.size(), device=disc.device)
+
+        grad = autograd.grad(
+            outputs=disc,
+            inputs=policy_state,
+            grad_outputs=ones,
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True,
+        )[0]
+
+        grad_pen = lambda_ * (grad.norm(2, dim=1) - 0).pow(2).mean()
+        return grad_pen
 
     # TODO: remove the complete function
     def predict_reward_old(
@@ -146,6 +178,39 @@ class Discriminator(nn.Module):
                 next_state = normalizer.normalize(next_state)
 
             discriminator_logit = self.forward(torch.cat([state, next_state], dim=-1))
+            prob = torch.sigmoid(discriminator_logit)
+
+            # Avoid log(0) by clamping the input to a minimum threshold
+            reward = -torch.log(
+                torch.maximum(
+                    1 - prob,
+                    torch.tensor(self.reward_clamp_epsilon, device=self.device),
+                )
+            )
+
+            reward = self.reward_scale * reward
+            return reward.squeeze()
+        
+    def predict_reward_add(
+        self,
+        state: torch.Tensor,
+        normalizer=None,
+    ) -> torch.Tensor:
+        """Predicts reward based on discriminator output using a log-style formulation.
+
+        Args:
+            state (Tensor): Current state tensor.
+            next_state (Tensor): Next state tensor.
+            normalizer (Optional): Optional state normalizer.
+
+        Returns:
+            Tensor: Computed adversarial reward.
+        """
+        with torch.no_grad():
+            if normalizer is not None:
+                state = normalizer.normalize(state)
+
+            discriminator_logit = self.forward(state)
             prob = torch.sigmoid(discriminator_logit)
 
             # Avoid log(0) by clamping the input to a minimum threshold

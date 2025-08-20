@@ -6,5 +6,6 @@
 """Implementation of runners for environment-agent interaction."""
 
 from .amp_on_policy_runner import AMPOnPolicyRunner
+from .add_on_policy_runner import ADDOnPolicyRunner
 
-__all__ = ["AMPOnPolicyRunner"]
+__all__ = ["AMPOnPolicyRunner", "ADDOnPolicyRunner"]
